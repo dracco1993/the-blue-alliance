@@ -1,6 +1,6 @@
 # Packages that are needed for testing on Travis
 Paver==1.1.1
-WebTest==2.0.28
+WebTest==2.0.34
 unittest2==0.5.1
 webapp2==2.5.2
 jinja2==2.6
