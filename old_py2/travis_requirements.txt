@@ -1,7 +1,7 @@
 # Packages that are needed for testing on Travis
 Paver==1.1.1
 WebTest==2.0.28
-unittest2==0.5.1
+unittest2==1.1.0
 webapp2==2.5.2
 jinja2==2.6
 appengine-fixture-loader==0.1.8
