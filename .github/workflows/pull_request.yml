@@ -232,6 +232,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
-      - uses: fastify/github-action-merge-dependabot@v3.0.2
+      - uses: fastify/github-action-merge-dependabot@v3.1.4
         with:
           github-token: ${{ secrets.PROTECTED_BRANCH_PUSH }}
