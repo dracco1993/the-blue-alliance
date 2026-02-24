@@ -92,10 +92,10 @@ Each line is `- /path` optionally followed by a display name. If no name is give
 ## Running
 
 ```bash
-npm run dev          # Development server
-npm run typecheck    # Type checking
-npm run lint         # Lint code
-npx playwright test  # E2E tests
+pnpm run dev              # Development server
+pnpm run typecheck        # Type checking
+pnpm run lint             # Lint code
+pnpm dlx playwright test  # E2E tests
 ```
 
 ## PR Screenshots
