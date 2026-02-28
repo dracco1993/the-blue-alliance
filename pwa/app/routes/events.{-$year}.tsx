@@ -1,9 +1,12 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 
 import { Event } from '~/api/tba/read';
-import { getEventsByYearOptions } from '~/api/tba/read/@tanstack/react-query.gen';
+import {
+  getDistrictsByYearOptions,
+  getEventsByYearOptions,
+} from '~/api/tba/read/@tanstack/react-query.gen';
 import EventListTable from '~/components/tba/eventListTable';
 import {
   TableOfContents,
@@ -171,6 +174,17 @@ function YearEventsPage() {
   const [inView, setInView] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
+  const districtsQuery = useQuery(
+    getDistrictsByYearOptions({ path: { year } }),
+  );
+  const districts = useMemo(
+    () =>
+      (districtsQuery.data ?? []).sort((a, b) =>
+        a.display_name.localeCompare(b.display_name),
+      ),
+    [districtsQuery.data],
+  );
+
   const sortedEvents = events.sort(sortEventsComparator);
   const groupedEvents = groupBySections(sortedEvents);
   const officialGroups = groupedEvents.filter((group) => group.isOfficial);
@@ -207,25 +221,54 @@ function YearEventsPage() {
   return (
     <div className="flex flex-wrap gap-8 lg:flex-nowrap">
       <TableOfContents tocItems={tocItems} inView={inView}>
-        <Select
-          value={String(year)}
-          onValueChange={(value) => {
-            void navigate({ to: `/events/${value}` });
-          }}
-        >
-          <SelectTrigger
-            className="w-[120px] max-lg:h-6 max-lg:w-24 max-lg:border-none"
+        <div className="flex flex-col gap-2">
+          <Select
+            value={String(year)}
+            onValueChange={(value) => {
+              void navigate({ to: `/events/${value}` });
+            }}
           >
-            <SelectValue placeholder={year} />
-          </SelectTrigger>
-          <SelectContent className="max-h-[30vh] overflow-y-auto">
-            {validYears.map((y) => (
-              <SelectItem key={y} value={`${y}`}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="w-[120px] max-lg:h-6 max-lg:w-24 max-lg:border-none"
+            >
+              <SelectValue placeholder={year} />
+            </SelectTrigger>
+            <SelectContent className="max-h-[30vh] overflow-y-auto">
+              {validYears.map((y) => (
+                <SelectItem key={y} value={`${y}`}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {districts.length > 0 && (
+            <Select
+              value=""
+              onValueChange={(value) => {
+                void navigate({
+                  to: '/district/$districtAbbreviation/{-$year}',
+                  params: {
+                    districtAbbreviation: value,
+                    year: String(year),
+                  },
+                });
+              }}
+            >
+              <SelectTrigger
+                className="w-30 max-lg:h-6 max-lg:w-24 max-lg:border-none"
+              >
+                <SelectValue placeholder="District" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[30vh] overflow-y-auto">
+                {districts.map((d) => (
+                  <SelectItem key={d.key} value={d.abbreviation}>
+                    {d.display_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </TableOfContents>
       <div className="basis-full py-8 lg:basis-5/6">
         <h1 className="mb-3 text-3xl font-medium">
