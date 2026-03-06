@@ -251,6 +251,7 @@ function YearEventsPage() {
                     districtAbbreviation: value,
                     year: String(year),
                   },
+                  search: { tab: 'events' },
                 });
               }}
             >

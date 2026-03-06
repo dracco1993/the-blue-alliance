@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { groupBy, sumBy } from 'lodash-es';
+import { z } from 'zod';
 
 import {
   Award,
@@ -43,9 +44,14 @@ import {
   publicCacheControlHeaders,
 } from '~/lib/utils';
 
+const districtSearchSchema = z.object({
+  tab: z.enum(['overview', 'rankings', 'events', 'teams']).optional(),
+});
+
 export const Route = createFileRoute(
   '/district/$districtAbbreviation/{-$year}',
 )({
+  validateSearch: districtSearchSchema,
   loader: async ({ params, context: { queryClient } }) => {
     const year = await parseParamsForYearElseDefault(queryClient, params);
     if (year === undefined) {
@@ -148,6 +154,7 @@ export const Route = createFileRoute(
 function DistrictPage() {
   const { awards, districtHistory, events, rankings, teams, year } =
     Route.useLoaderData();
+  const { tab } = Route.useSearch();
 
   const hasRankings = rankings !== null;
 
@@ -187,7 +194,7 @@ function DistrictPage() {
         {districtHistory[districtHistory.length - 1].display_name} {year}
       </h1>
 
-      <Tabs defaultValue={'overview'} className="mt-4">
+      <Tabs defaultValue={tab ?? 'overview'} className="mt-4">
         <TabsList
           className="flex h-auto flex-wrap items-center justify-evenly
             [&>*]:basis-1/2 lg:[&>*]:basis-1"
