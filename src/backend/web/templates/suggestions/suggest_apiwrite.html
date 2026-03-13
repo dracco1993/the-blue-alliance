@@ -27,6 +27,14 @@
                             already on The Blue Alliance. If you can't find your event, be sure
                             to <a href="/suggest/offseason">suggest it</a>.</p>
                         </div>
+                    {% elif status == 'suggestion_exists' %}
+                        <div class="alert alert-info" id="suggestion_exists-alert">
+                            <button type="button" class="close"
+                                    data-dismiss="alert">&times;</button>
+                            <h4>Already Requested!</h4>
+
+                            <p>There is already a pending request for write tokens for this event. It's currently awaiting review by a moderator.</p>
+                        </div>
                     {% elif status == 'no_affiliation' %}
                         <div class="alert alert-danger" id="no_affiliation-alert">
                             <button type="button" class="close"

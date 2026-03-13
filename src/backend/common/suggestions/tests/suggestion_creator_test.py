@@ -532,6 +532,106 @@ class TestOffseasonEventSuggestionCreator(SuggestionCreatorTest):
         suggestion = cast(Suggestion, suggestions[0])
         self.assertEqual(suggestion.contents["event_type"], EventType.OFFSEASON)
 
+    def test_duplicate_suggestion(self) -> None:
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Test Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://foo.bar.com",
+            "The Venue",
+            "123 Fake Street",
+            "New York",
+            "NY",
+            "USA",
+        )
+        self.assertEqual(status, "success")
+
+        # Submitting the same event again should be detected as duplicate
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Test Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://different-website.com",
+            "Different Venue",
+            "456 Other Street",
+            "Boston",
+            "MA",
+            "USA",
+        )
+        self.assertEqual(status, "suggestion_exists")
+
+        # Only one suggestion should exist
+        suggestions = Suggestion.query().fetch()
+        self.assertEqual(len(suggestions), 1)
+
+    def test_duplicate_suggestion_different_name(self) -> None:
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Test Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://foo.bar.com",
+            "The Venue",
+            "123 Fake Street",
+            "New York",
+            "NY",
+            "USA",
+        )
+        self.assertEqual(status, "success")
+
+        # Different name should not be a duplicate
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Different Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://foo.bar.com",
+            "The Venue",
+            "123 Fake Street",
+            "New York",
+            "NY",
+            "USA",
+        )
+        self.assertEqual(status, "success")
+
+    def test_duplicate_suggestion_rejected_allows_resubmit(self) -> None:
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Test Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://foo.bar.com",
+            "The Venue",
+            "123 Fake Street",
+            "New York",
+            "NY",
+            "USA",
+        )
+        self.assertEqual(status, "success")
+
+        # Reject the suggestion
+        suggestions = Suggestion.query().fetch()
+        suggestion = cast(Suggestion, suggestions[0])
+        suggestion.review_state = SuggestionState.REVIEW_REJECTED
+        suggestion.put()
+
+        # Should be able to resubmit after rejection
+        status, _ = SuggestionCreator.createOffseasonEventSuggestion(
+            self.account.key,
+            "Test Event",
+            "2016-5-1",
+            "2016-5-2",
+            "http://foo.bar.com",
+            "The Venue",
+            "123 Fake Street",
+            "New York",
+            "NY",
+            "USA",
+        )
+        self.assertEqual(status, "success")
+
 
 class TestApiWriteSuggestionCreator(SuggestionCreatorTest):
     def test_create_suggestion(self) -> None:
@@ -661,6 +761,58 @@ class TestApiWriteSuggestionCreator(SuggestionCreatorTest):
         self.assertEqual(suggestion.contents["event_key"], "2016test")
         self.assertEqual(suggestion.contents["affiliation"], "Event Organizer")
         self.assertListEqual(suggestion.contents["auth_types"], [1, 2])
+
+    def test_duplicate_suggestion(self) -> None:
+        event = Event(
+            id="2016test",
+            name="Test Event",
+            event_short="Test Event",
+            year=2016,
+            event_type_enum=EventType.OFFSEASON,
+        )
+        event.put()
+
+        status = SuggestionCreator.createApiWriteSuggestion(
+            self.account.key, "2016test", "Event Organizer", [1, 2, 3]
+        )
+        self.assertEqual(status, "success")
+
+        # Submitting again for the same event should be detected as duplicate
+        status = SuggestionCreator.createApiWriteSuggestion(
+            self.account.key, "2016test", "Different Role", [1]
+        )
+        self.assertEqual(status, "suggestion_exists")
+
+        # Only one suggestion should exist
+        suggestions = Suggestion.query().fetch()
+        self.assertEqual(len(suggestions), 1)
+
+    def test_duplicate_suggestion_rejected_allows_resubmit(self) -> None:
+        event = Event(
+            id="2016test",
+            name="Test Event",
+            event_short="Test Event",
+            year=2016,
+            event_type_enum=EventType.OFFSEASON,
+        )
+        event.put()
+
+        status = SuggestionCreator.createApiWriteSuggestion(
+            self.account.key, "2016test", "Event Organizer", [1, 2, 3]
+        )
+        self.assertEqual(status, "success")
+
+        # Reject the suggestion
+        suggestions = Suggestion.query().fetch()
+        suggestion = cast(Suggestion, suggestions[0])
+        suggestion.review_state = SuggestionState.REVIEW_REJECTED
+        suggestion.put()
+
+        # Should be able to resubmit after rejection
+        status = SuggestionCreator.createApiWriteSuggestion(
+            self.account.key, "2016test", "Event Organizer", [1, 2, 3]
+        )
+        self.assertEqual(status, "success")
 
 
 class TestSuggestEventWebcastCreator(SuggestionCreatorTest):
@@ -831,6 +983,33 @@ class TestSuggestEventWebcastCreator(SuggestionCreatorTest):
             self.account.key, "http://myweb.site/somewebcast", "", "2016test"
         ).get_result()
         self.assertEqual(status, "suggestion_exists")
+
+    def test_duplicate_unknown_suggestion_rejected_allows_resubmit(self) -> None:
+        event = Event(
+            id="2016test",
+            name="Test Event",
+            event_short="Test Event",
+            year=2016,
+            event_type_enum=EventType.OFFSEASON,
+        )
+        event.put()
+
+        status = SuggestionCreator.createEventWebcastSuggestion(
+            self.account.key, "http://myweb.site/somewebcast", "", "2016test"
+        ).get_result()
+        self.assertEqual(status, "success")
+
+        # Reject the suggestion
+        suggestions = Suggestion.query().fetch()
+        suggestion = cast(Suggestion, suggestions[0])
+        suggestion.review_state = SuggestionState.REVIEW_REJECTED
+        suggestion.put()
+
+        # Should be able to resubmit after rejection
+        status = SuggestionCreator.createEventWebcastSuggestion(
+            self.account.key, "http://myweb.site/somewebcast", "", "2016test"
+        ).get_result()
+        self.assertEqual(status, "success")
 
     def test_webcast_bad_date(self) -> None:
         event = Event(

@@ -253,7 +253,9 @@ class SuggestionCreator:
 
             # Check if suggestion exists
             existing_suggestions = Suggestion.query(
-                Suggestion.target_model == "event", Suggestion.target_key == event_key
+                Suggestion.target_model == "event",
+                Suggestion.target_key == event_key,
+                Suggestion.review_state == SuggestionState.REVIEW_PENDING,
             ).fetch()
             for existing_suggestion in existing_suggestions:
                 if cast(Suggestion, existing_suggestion).contents == contents:
@@ -416,6 +418,21 @@ class SuggestionCreator:
             # Be more lenient with auto-added suggestions
             return SuggestionCreationStatus.VALIDATION_FAILURE, failures
 
+        # Check for duplicate pending suggestions with the same name + dates
+        if not suggestion_id:
+            existing_suggestions = Suggestion.query(
+                Suggestion.target_model == "offseason-event",
+                Suggestion.review_state == SuggestionState.REVIEW_PENDING,
+            ).fetch()
+            for existing_suggestion in existing_suggestions:
+                existing = cast(Suggestion, existing_suggestion)
+                if (
+                    existing.contents.get("name") == name
+                    and existing.contents.get("start_date") == start_date
+                    and existing.contents.get("end_date") == end_date
+                ):
+                    return SuggestionCreationStatus.SUGGESTION_EXISTS, None
+
         # Determine event type based on start date
         # Preseason events are before March (January, February)
         # Offseason events are March or later
@@ -463,6 +480,15 @@ class SuggestionCreator:
             event = Event.get_by_id(event_key)
             clean_auth_types: List[AuthType] = []
             if event:
+                # Check for existing pending suggestion for this event
+                existing_suggestions = Suggestion.query(
+                    Suggestion.target_model == "api_auth_access",
+                    Suggestion.target_key == event_key,
+                    Suggestion.review_state == SuggestionState.REVIEW_PENDING,
+                ).fetch()
+                if existing_suggestions:
+                    return SuggestionCreationStatus.SUGGESTION_EXISTS
+
                 suggestion = Suggestion(
                     author=author_account_key,
                     target_model="api_auth_access",

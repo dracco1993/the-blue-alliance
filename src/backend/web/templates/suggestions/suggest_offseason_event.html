@@ -17,6 +17,14 @@
 
                             <p>We'll review your suggestion and get it added to the site soon!</p>
                         </div>
+                    {% elif status == 'suggestion_exists' %}
+                        <div class="alert alert-info" id="suggestion_exists-alert">
+                            <button type="button" class="close"
+                                    data-dismiss="alert">&times;</button>
+                            <h4>Already Suggested!</h4>
+
+                            <p>Someone has already suggested this event and it's currently awaiting review by a moderator. Thanks for thinking of it!</p>
+                        </div>
                     {% elif status == 'validation_failure' %}
                         <div class="alert alert-danger" id="validation_failure-alert">
                             <button type="button" class="close"
