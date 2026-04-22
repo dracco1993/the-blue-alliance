@@ -7,6 +7,7 @@ import {
   DistrictRanking,
   Event,
   Team,
+  getDistrictAdvancement,
   getDistrictAwards,
   getDistrictEvents,
   getDistrictHistory,
@@ -64,7 +65,7 @@ export const Route = createFileRoute(
       throw notFound();
     }
 
-    const [districtHistory, rankings, teams, events, awards] =
+    const [districtHistory, rankings, teams, events, awards, advancement] =
       await Promise.all([
         await getDistrictHistory({
           path: {
@@ -91,6 +92,11 @@ export const Route = createFileRoute(
             district_key: `${year}${params.districtAbbreviation}`,
           },
         }),
+        await getDistrictAdvancement({
+          path: {
+            district_key: `${year}${params.districtAbbreviation}`,
+          },
+        }),
       ]);
 
     if (
@@ -98,6 +104,7 @@ export const Route = createFileRoute(
       rankings.data === undefined ||
       teams.data === undefined ||
       events.data === undefined ||
+      advancement.data === undefined ||
       awards.data === undefined
     ) {
       throw notFound();
@@ -135,6 +142,7 @@ export const Route = createFileRoute(
       teams: actuallyActiveTeams,
       events: events.data,
       awards: awards.data,
+      advancement: advancement.data,
     };
   },
   headers: publicCacheControlHeaders(),
@@ -169,6 +177,7 @@ export const Route = createFileRoute(
 function DistrictPage() {
   const {
     abbreviation,
+    advancement,
     awards,
     districtHistory,
     events,
@@ -510,6 +519,34 @@ function DistrictPage() {
                   header: 'Total',
                   accessorFn: (ranking) => ranking.point_total,
                   cell: (info) => <div>{info.getValue()}</div>,
+                },
+                {
+                  header: 'Qualified for DCMP',
+                  accessorFn: (ranking) =>
+                    advancement !== null &&
+                    advancement[ranking.team_key]?.dcmp === true
+                      ? 1
+                      : 0,
+                  cell: (info) =>
+                    info.getValue() ? (
+                      <div className="text-center">✓</div>
+                    ) : (
+                      <div />
+                    ),
+                },
+                {
+                  header: 'Qualified for CMP',
+                  accessorFn: (ranking) =>
+                    advancement !== null &&
+                    advancement[ranking.team_key]?.cmp === true
+                      ? 1
+                      : 0,
+                  cell: (info) =>
+                    info.getValue() ? (
+                      <div className="text-center">✓</div>
+                    ) : (
+                      <div />
+                    ),
                 },
               ]}
             />
