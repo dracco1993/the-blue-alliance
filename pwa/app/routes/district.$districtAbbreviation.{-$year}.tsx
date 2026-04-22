@@ -13,6 +13,8 @@ import {
   getDistrictHistory,
   getDistrictRankings,
   getDistrictTeams,
+  getEventTeamsKeys,
+  getEventsByYearSimple,
 } from '~/api/tba/read';
 import { TitledCard } from '~/components/tba/cards';
 import { DataTable } from '~/components/tba/dataTable';
@@ -134,6 +136,24 @@ export const Route = createFileRoute(
             actuallyActiveRankings.find((r) => r.team_key === team.key),
           );
 
+    // Fetch CMP events for the year to determine which qualified teams actually attended
+    const yearEventsResult = await getEventsByYearSimple({
+      path: { year },
+    });
+    const cmpEventKeys = (yearEventsResult.data ?? []).filter(
+      (e) =>
+        e.event_type === EventType.CMP_DIVISION ||
+        e.event_type === EventType.CMP_FINALS,
+    );
+    const cmpTeamKeyResults = await Promise.all(
+      cmpEventKeys.map((e) =>
+        getEventTeamsKeys({ path: { event_key: e.key } }),
+      ),
+    );
+    const cmpAttendees = new Set(
+      cmpTeamKeyResults.flatMap((r) => r.data ?? []),
+    );
+
     return {
       abbreviation: params.districtAbbreviation,
       year,
@@ -143,6 +163,7 @@ export const Route = createFileRoute(
       events: events.data,
       awards: awards.data,
       advancement: advancement.data,
+      cmpAttendees: [...cmpAttendees],
     };
   },
   headers: publicCacheControlHeaders(),
@@ -179,6 +200,7 @@ function DistrictPage() {
     abbreviation,
     advancement,
     awards,
+    cmpAttendees,
     districtHistory,
     events,
     rankings,
@@ -536,17 +558,38 @@ function DistrictPage() {
                 },
                 {
                   header: 'Qualified for CMP',
-                  accessorFn: (ranking) =>
-                    advancement !== null &&
-                    advancement[ranking.team_key]?.cmp === true
-                      ? 1
-                      : 0,
-                  cell: (info) =>
-                    info.getValue() ? (
-                      <div className="text-center">✓</div>
-                    ) : (
-                      <div />
-                    ),
+                  accessorFn: (ranking) => {
+                    const qualified =
+                      advancement !== null &&
+                      advancement[ranking.team_key]?.cmp === true;
+                    const attended = cmpAttendees.includes(ranking.team_key);
+                    // Encode: qualified bit (2) + attended bit (1)
+                    return (qualified ? 2 : 0) + (attended ? 1 : 0);
+                  },
+                  cell: (info) => {
+                    const val = info.getValue<number>();
+                    const qualified = (val & 2) !== 0;
+                    const attended = (val & 1) !== 0;
+                    if (!qualified && !attended) return <div />;
+                    return (
+                      <div
+                        className="text-center"
+                        title={
+                          qualified && attended
+                            ? 'Qualified & attended'
+                            : qualified
+                              ? 'Qualified but declined'
+                              : 'Attended CMP (as alternate)'
+                        }
+                      >
+                        {qualified && !attended
+                          ? '⏭'
+                          : qualified && attended
+                            ? '✓'
+                            : `⬆`}
+                      </div>
+                    );
+                  },
                 },
               ]}
             />
